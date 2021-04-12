@@ -1,0 +1,345 @@
+---
+title: "Shiny 2"
+author: "Tamanna_Kawatra"
+date: "4/2/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+if(!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, shiny, ggplot2, imputeMissings, mice, leaflet, htmltools,esquisse, lattice, VIM, tidyverse, datetime, viridis , dplyr,lubridate, plotly)
+search()
+```
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+crimes_df <- read.csv("Crimes_2020.csv",header= TRUE)
+```
+
+
+```{r}
+summary(crimes_df)
+```
+
+
+```{r}
+dim(crimes_df)
+str(crimes_df)
+head(crimes_df)
+
+```
+```{r}
+crimes_df[crimes_df == ""] <- NA
+```
+
+```{r}
+# what percentage missing?
+p <- function(x) {sum(is.na(x))/length(x)*100}
+apply(crimes_df, 2, p)
+
+
+
+```
+```{r}
+ 
+```
+
+```{r}
+ggplot(crimes_df) +
+ aes(x = Arrest) +
+ geom_bar(fill = "#fcbba1") +
+ labs(title = "Distribution of Arrests") +
+ theme_minimal()
+
+ggplot(crimes_df) +
+ aes(x = Domestic) +
+ geom_bar(fill = "#fccba1") +
+ labs(title = "Distribution of Domestic Crime") +
+ theme_minimal()
+
+```
+
+# Most of the arrests did not lead to arrest
+# Most of the arrest are not domestic address
+
+
+```{r}
+#Extracting month from the date column
+crimes_df$Dates <- parse_date_time(crimes_df$Date, orders = c("%m/%d/%Y %H:%M"))
+
+crimes_df$Month <- months(crimes_df$Dates)
+crimes_df$Month = factor(crimes_df$Month, levels = month.name)
+head(crimes_df)
+```
+```{r}
+ill_formated_dates =  crimes_df[is.na(crimes_df$Dates),]
+
+ill_formated_dates$date2 <- sapply(strsplit(as.character(ill_formated_dates$Date), " "), "[", 1)
+ill_formated_dates$Time2 <- sapply(strsplit(as.character(ill_formated_dates$Date), " "), "[", 3)
+
+```
+
+
+## on Analyzing the date column there are three dates which cannot exist as 31 Feb and 31 June can't exit so dropping the NA rows
+```{r}
+crimes_df = crimes_df %>% drop_na(Dates)
+```
+
+
+```{r}
+crimes_df$`Location_Description_modified` <- fct_collapse(crimes_df$Location.Description,
+'AIRPORT/AIRCRAFT' = c("AIRCRAFT", "AIRPORT BUILDING NON-TERMINAL - NON-SECURE AREA", 
+    "AIRPORT BUILDING NON-TERMINAL - SECURE AREA", "AIRPORT EXTERIOR - NON-SECURE AREA", 
+    "AIRPORT EXTERIOR - SECURE AREA", "AIRPORT PARKING LOT", "AIRPORT TERMINAL LOWER LEVEL - NON-SECURE AREA",
+    "AIRPORT TERMINAL LOWER LEVEL - SECURE AREA", "AIRPORT TERMINAL MEZZANINE - NON-SECURE AREA", 
+    "AIRPORT TERMINAL UPPER LEVEL - NON-SECURE AREA", "AIRPORT TERMINAL UPPER LEVEL - SECURE AREA", 
+    "AIRPORT TRANSPORTATION SYSTEM (ATS)", "AIRPORT VENDING ESTABLISHMENT", "AIRPORT/AIRCRAFT"),
+'ANIMAL SITE' = c('ANIMAL HOSPITAL', 'KENNEL'),
+'Bank/Financial Site' = c('ATM (AUTOMATIC TELLER MACHINE)', 'BANK', 'SAVINGS AND LOAN', 
+    'CREDIT UNION', 'CURRENCY EXCHANGE', 'COIN OPERATED MACHINE', 'PAWN SHOP'),
+'Bar/Liquor Store' = c('BAR OR TAVERN', 'LIQUOR STORE', 'TAVERN/LIQUOR STORE' , 'TAVERN / LIQUOR STORE'),
+'Barber' = c('BARBERSHOP'),
+'CHA' = c('CHA APARTMENT', 'CHA GROUNDS', 'CHA HALLWAY/STAIRWELL/ELEVATOR', 'CHA PARKING LOT', 'CHA PARKING LOT/GROUNDS'),
+'College' = c('COLLEGE/UNIVERSITY GROUNDS', 'COLLEGE/UNIVERSITY RESIDENCE HALL' , 
+              'COLLEGE / UNIVERSITY - GROUNDS',
+'COLLEGE / UNIVERSITY - RESIDENCE HALL'
+),
+'CTA' = c('CTA BUS', 'CTA BUS STOP', 'CTA GARAGE / OTHER PROPERTY', 'CTA PLATFORM', 'CTA PROPERTY', 'CTA STATION', 
+          'CTA TRACKS - RIGHT OF WAY', 'CTA TRAIN' , 'CTA "L" PLATFORM', 'CTA PARKING LOT / GARAGE / OTHER PROPERTY', 'CTA PLATFORM' , 'CTA TRACKS - RIGHT OF WAY'),
+'Forest' = c('FOREST PRESERVE'),
+'Garage' = c('GARAGE'),
+'Gas Station' = c('GAS STATION', 'GAS STATION DRIVE/PROP.'),
+'Govt Bldg' = c('GOVERNMENT BUILDING/PROPERTY', 'FEDERAL BUILDING' , 'GOVERNMENT BUILDING / PROPERTY'),
+'Hospital/Health Site' = c('HOSPITAL', 'HOSPITAL BUILDING/GROUNDS', 'MEDICAL/DENTAL OFFICE', 'NURSING HOME/RETIREMENT HOME' , 'HOSPITAL BUILDING / GROUNDS' , 'MEDICAL / DENTAL OFFICE', 'NURSING / RETIREMENT HOME'),
+'Lake' = c('LAKEFRONT/WATERFRONT/RIVERBANK' , 'LAKEFRONT / WATERFRONT / RIVERBANK'),
+'Law Enforcement' = c('JAIL / LOCK-UP FACILITY', 'POLICE FACILITY/VEH PARKING LOT'),
+'Hotel' = c('HOTEL', 'HOTEL/MOTEL' , 'HOTEL / MOTEL'),
+'Office' = c('COMMERCIAL / BUSINESS OFFICE', 'OFFICE'),
+'Parking Lot' = c('PARKING LOT', 'PARKING LOT/GARAGE(NON.RESID.)', 'PARKING LOT / GARAGE (NON RESIDENTIAL)'),
+'Residence' = c('HOUSE', 'RESIDENCE', 'RESIDENCE PORCH/HALLWAY', 'RESIDENCE-GARAGE', 'RESIDENTIAL YARD (FRONT/BACK)','RESIDENCE - PORCH / HALLWAY' ,
+    'PORCH', 'YARD', 'DRIVEWAY - RESIDENTIAL', 'POOL ROOM'),
+'Retail' = c('APPLIANCE STORE', 'DEPARTMENT STORE', 'CLEANING STORE', 'DRUG STORE', 'RETAIL STORE', 'SMALL RETAIL STORE'),
+'Road' = c('BRIDGE', 'HIGHWAY/EXPRESSWAY', 'STREET' , 'HIGHWAY / EXPRESSWAY'),
+'School' = c('SCHOOL, PRIVATE, BUILDING', 'SCHOOL, PRIVATE, GROUNDS', 'SCHOOL, PUBLIC, BUILDING', 'SCHOOL, PUBLIC, GROUNDS' , 'SCHOOL - PUBLIC BUILDING',
+'SCHOOL - PUBLIC GROUNDS',
+'SCHOOL - PRIVATE BUILDING',
+'SCHOOL - PRIVATE GROUNDS'
+),
+'Vacant Lot' = c('VACANT LOT', 'VACANT LOT/LAND'),
+'Vehicle/Auto Site' = c('AUTO', 'TAXICAB', 'VEHICLE - DELIVERY TRUCK', 
+    'VEHICLE - OTHER RIDE SHARE SERVICE (E.G., UBER, LYFT)','VEHICLE NON-COMMERCIAL', 'VEHICLE-COMMERCIAL', 'CAR WASH', 
+     'AUTO / BOAT / RV DEALERSHIP', 'VEHICLE - OTHER RIDE SHARE SERVICE (LYFT, UBER, ETC.)', 'VEHICLE - COMMERCIAL: ENTERTAINMENT / PARTY BUS', 'VEHICLE - COMMERCIAL: TROLLEY BUS' , 'VEHICLE - DELIVERY TRUCK' ), 
+'Youth Site' = c('DAY CARE CENTER'),
+'FACTORY' = c('FACTORY / MANUFACTURING BUILDING', 'FACTORY/MANUFACTURING BUILDING'),
+'OTHER' = c('OTHER', 'OTHER (SPECIFY)')
+
+)
+crimes_df$Location_Description_modified =   replace_na(crimes_df$Location_Description_modified, "OTHER")
+
+crimes_df$Location_Description_modified = toupper(crimes_df$Location_Description_modified)
+```
+
+
+
+
+```{r}
+#Extract hour from timestamp
+crimes_df$Time <- format(crimes_df$Dates, format = "%H:%M:%S")
+crimes_df$Hour <- format(crimes_df$Dates, format = "%H")
+crimes_df$Hour <- as.numeric(crimes_df$Hour)
+crimes_df$Dates <- as.Date(crimes_df$Dates)
+head(crimes_df)
+  
+```
+```{r}
+count_by_type = crimes_df %>%
+  group_by(Primary.Type) %>%
+  dplyr::summarise(Count=n())
+count_type_month =  crimes_df %>%
+  group_by(Primary.Type, Month) %>%
+  dplyr::summarise(Count=n())
+choice4=unique(count_by_type$Primary.Type)
+```
+
+
+
+
+
+
+
+```{r}
+
+tab2 <- crimes_df %>% drop_na(Latitude, Longitude)
+
+
+tab2$label = paste(
+                 "<p>","Block:", tab2$Block, ", ", "</p>",
+                  "<p>", "Crime_Type:", tab2$Primary.Type, ", " , "</p>",
+                  "<p>", "Is_Arrest:", tab2$Arrest, ", " , "</p>",
+                  "<p>", "Is_Domestic:", tab2$Domestic, ", ","</p>",
+                  "<p>", "Description:", tab2$Description, ", ", "</p>",
+                  "<p>","Date:", tab2$Dates, ", ", "</p>",
+                  "<p>","Location_Description:",tab2$Location_Description_modified, ", ","</p>" )
+colSums(is.na(tab2))
+```
+
+
+```{r}
+tab3 <- crimes_df %>%
+     group_by(Hour,Primary.Type) %>%
+       dplyr::summarise(sum = n())
+```
+```{r}
+count_by_premises= crimes_df %>%
+  group_by(Location_Description_modified) %>%
+  dplyr::summarise(Count=n())
+
+choice3=unique(count_by_premises$Location_Description_modified)
+choice2=unique(crimes_df$Month)
+```
+
+
+```{r}
+ui <-  fluidPage( 
+  h1("Crime In Chicago"),
+
+  
+ tabsetPanel(
+   #TAB1
+  tabPanel("Frequency of Crime By Month and Type", 
+          h3("Frequency of Crime By Month and Type"),
+  sidebarLayout(
+     sidebarPanel(
+          selectInput(inputId='crime_type2', label=h3('Select Crime'), choices = choice4,multiple = TRUE,
+                            selected = c('HOMICIDE', 'PROSTITUTION', 'ROBBERY')),
+          selectInput(inputId='month_no', label=h3('Select month'), choices = choice2,multiple = TRUE,
+                            selected = c('January' , 'February'))
+          
+          
+          
+          ),
+          mainPanel(
+           plotOutput("bar")
+
+          ))),
+  
+   tabPanel("Location of Crimes By Date",
+           h3("Location of Crimes By Date"),
+           sidebarLayout(
+              sidebarPanel(
+           dateRangeInput(
+             inputId = "dateRange",
+             label = "Select data range",
+             start = "2020-01-01",
+             end = "2020-12-31",
+             format = "yyyy/mm/dd",
+             separator = "-"))
+           , mainPanel(
+           leafletOutput("map"))
+           )),
+  tabPanel("Type Of Crime By Hour",
+           h3("Type Of Crime By Hour"),
+           plotOutput("heat")
+           ),
+   tabPanel("Crimelocations by Hour",
+              fluidRow(
+                column(3, 
+                       selectInput(inputId='location_type', label=h3('Select Locations'), choices = choice3,
+                                   selected = 'APARTMENT')),
+                
+                column(9,
+                       h3(''),
+                       plotOutput(outputId = "reactbargraphlocationsbyhour"))),
+              
+              fluidRow(
+                column(3, 
+                        selectInput(inputId='crime_type1', label=h3('Select Crime'), choices = choice4,
+                            selected = 'HOMICIDE')),
+                column(9,
+                       h3(''),
+                       plotOutput(outputId = "reactareacrimesbyhour"
+                                    )))
+              )
+  
+  
+  
+  
+  ))
+```
+
+
+```{r}
+server <- function(input, output, session){
+  #TAB1
+   output$bar <- renderPlot({
+     table <- filter(count_type_month, Primary.Type %in% input$crime_type2 , Month %in% input$month_no)
+     ggplot(data=table ,  aes(x=Month, y=Count, fill =Primary.Type )) +
+  geom_bar(stat="identity")
+
+   })
+   
+output$map <- renderLeaflet({
+  range_map <-   filter(tab2, 
+    trunc(tab2$Dates, unit="days") >= input$dateRange[1] & trunc(tab2$Dates, unit="days") <= input$dateRange[2]) 
+  
+   leaflet(data = range_map) %>% 
+     addProviderTiles(providers$OpenStreetMap.Mapnik) %>%
+        addCircleMarkers(lng = range_map$Longitude , lat = range_map$Latitude, radius = 2,
+        label = lapply(range_map$label, htmltools::HTML),
+                   labelOptions = labelOptions(noHide = F)
+                         ) %>% #end of addMarkers
+        setView(lng = -87.7, lat = 41.8, zoom = 10)    
+
+  })
+  output$heat <- renderPlot({
+   ggplot(tab3, aes(x = tab3$Hour, y = tab3$Primary.Type, fill= tab3$sum)) +
+      xlab("Hour")+ ylab("Type of Crime")+
+    geom_tile() + scale_fill_gradient(low = "white" , high = "red")
+})
+
+output$reactbargraphlocationsbyhour <- renderPlot({
+     data_by_location = crimes_df[crimes_df$Location_Description_modified == input$location_type,] %>%
+      group_by(Hour) %>%
+      dplyr::summarise(Total = n()) 
+     ggplot(data=data_by_location ,  aes(x=Hour, y=Total )) +  geom_area( fill="#69b3a2", alpha=0.4) +
+  geom_line(color="#69b3a2", size=2) +
+  geom_point(size=3, color="#69b3a2") +
+  ggtitle("Crime by Hour and Location")
+
+   })
+output$reactareacrimesbyhour <- renderPlot({
+     data_by_crime = crimes_df[crimes_df$Primary.Type == input$crime_type1,] %>%
+      group_by(Hour) %>%
+      dplyr::summarise(Count = n()) 
+     ggplot(data=data_by_crime ,  aes(x=Hour, y=Count )) +  geom_area( fill="#69b3a2", alpha=0.4) +
+  geom_line(color="#69b3a2", size=2) +
+  geom_point(size=3, color="#69b3a2") +
+  ggtitle("Crime by Hour and Crime_Type")
+
+   })
+
+  
+
+   
+   
+   
+   
+   }
+```
+
+```{r}
+shinyApp(ui,server)
+```
+`
